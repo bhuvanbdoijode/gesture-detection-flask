@@ -67,49 +67,74 @@
         });
         camera.start();
 
-        function detectGesture(landmarks) {
-    function isFingerUp(tip, pip) {
-        return landmarks[tip].y < landmarks[pip].y;
+        let lastGesture = "";
+let gestureHoldFrames = 0;
+const HOLD_THRESHOLD = 5; // gesture must stay stable for 5 frames
+
+function detectGesture(landmarks) {
+
+    function fingerIsUp(tip, pip, mcp) {
+        // Check vertical direction + bone angles → more accurate
+        return (
+            landmarks[tip].y < landmarks[pip].y &&
+            landmarks[pip].y < landmarks[mcp].y
+        );
+    }
+
+    function distance(a, b) {
+        return Math.hypot(a.x - b.x, a.y - b.y);
     }
 
     const thumbUp = landmarks[4].y < landmarks[3].y;
-    const indexUp = isFingerUp(8, 6);
-    const middleUp = isFingerUp(12, 10);
-    const ringUp = isFingerUp(16, 14);
-    const pinkyUp = isFingerUp(20, 18);
+    const indexUp = fingerIsUp(8, 6, 5);
+    const middleUp = fingerIsUp(12, 10, 9);
+    const ringUp = fingerIsUp(16, 14, 13);
+    const pinkyUp = fingerIsUp(20, 18, 17);
 
-    // ✋ PALM OPEN (all fingers up)
-    if (thumbUp && indexUp && middleUp && ringUp && pinkyUp) {
-        document.getElementById("gesture").innerText = "Gesture: 🖐️ Open Palm";
-        return;
+    // Detect fist using distances (accurate even when tilted)
+    const palmSize = distance(landmarks[0], landmarks[9]);
+    const fistClosed =
+        distance(landmarks[8], landmarks[5]) < palmSize * 0.3 &&
+        distance(landmarks[12], landmarks[9]) < palmSize * 0.3 &&
+        distance(landmarks[16], landmarks[13]) < palmSize * 0.3 &&
+        distance(landmarks[20], landmarks[17]) < palmSize * 0.3;
+
+    let detected = "Detecting...";
+
+    // ✊ FIST
+    if (fistClosed) {
+        detected = "✊ Fist";
+    }
+    // 🖐️ Open Palm
+    else if (thumbUp && indexUp && middleUp && ringUp && pinkyUp) {
+        detected = "🖐️ Open Palm";
+    }
+    // 👍 Thumbs Up
+    else if (thumbUp && !indexUp && !middleUp && !ringUp && !pinkyUp) {
+        detected = "👍 Thumbs Up";
+    }
+    // ✌️ Victory
+    else if (indexUp && middleUp && !ringUp && !pinkyUp) {
+        detected = "✌️ Victory";
+    }
+    // 👉 Pointing
+    else if (indexUp && !middleUp && !ringUp && !pinkyUp) {
+        detected = "👉 Pointing";
     }
 
-    // ✊ FIST (no fingers up)
-    if (!indexUp && !middleUp && !ringUp && !pinkyUp) {
-        document.getElementById("gesture").innerText = "Gesture: ✊ Fist";
-        return;
+    // -------- STABILIZATION (IMPORTANT) --------
+    if (detected === lastGesture) {
+        gestureHoldFrames++;
+    } else {
+        gestureHoldFrames = 0;
     }
+    lastGesture = detected;
 
-    // 👍 THUMBS UP (thumb up, others down)
-    if (thumbUp && !indexUp && !middleUp && !ringUp && !pinkyUp) {
-        document.getElementById("gesture").innerText = "Gesture: 👍 Thumbs Up";
-        return;
+    if (gestureHoldFrames >= HOLD_THRESHOLD) {
+        document.getElementById("gesture").innerText = "Gesture: " + detected;
     }
-
-    // ✌️ PEACE / VICTORY SIGN (index + middle)
-    if (indexUp && middleUp && !ringUp && !pinkyUp) {
-        document.getElementById("gesture").innerText = "Gesture: ✌️ Victory";
-        return;
-    }
-
-    // 👉 POINTING (index only)
-    if (indexUp && !middleUp && !ringUp && !pinkyUp) {
-        document.getElementById("gesture").innerText = "Gesture: 👉 Pointing";
-        return;
-    }
-
-    document.getElementById("gesture").innerText = "Gesture: Detecting...";
 }
+
     </script>
 </body>
 </html>
