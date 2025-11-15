@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Gesture Detection (Flask)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>✋ Real-Time Gesture Detection AI (Flask)</h1>
+    </header>
+
+    <main>
+      <section class="left">
+        <h2>Live Camera Feed</h2>
+        <div class="video-wrap">
+          <img id="video" src="{{ url_for('video_feed') }}" alt="Video Feed" />
+        </div>
+
+        <div class="controls">
+          <button id="snapBtn">📸 Snapshot</button>
+        </div>
+      </section>
+
+      <aside class="right">
+        <h2>Detection Results</h2>
+        <div id="gestureBox" class="gesture-box">{{ settings.last_gesture or 'No Gesture Detected' }}</div>
+
+        <div class="form-row">
+          <label>Detection Confidence: <span id="dval">{{ settings.min_detection_confidence }}</span></label>
+          <input id="dconf" type="range" min="0.1" max="1.0" step="0.05" value="{{ settings.min_detection_confidence }}">
+        </div>
+
+        <div class="form-row">
+          <label>Tracking Confidence: <span id="tval">{{ settings.min_tracking_confidence }}</span></label>
+          <input id="tconf" type="range" min="0.1" max="1.0" step="0.05" value="{{ settings.min_tracking_confidence }}">
+        </div>
+
+        <div class="form-row">
+          <label><input id="landmarks" type="checkbox" {% if settings.show_landmarks %}checked{% endif %}> Show Landmarks</label>
+        </div>
+
+        <div class="form-row">
+          <label><input id="fps" type="checkbox" {% if settings.show_fps %}checked{% endif %}> Show FPS</label>
+        </div>
+
+        <div id="status" class="info">Frames Processed: <span id="framesCount">{{ settings.frames_processed }}</span></div>
+      </aside>
+    </main>
+
+    <footer>
+      <p>Built with ❤️ using Flask, Mediapipe & OpenCV</p>
+    </footer>
+  </div>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
