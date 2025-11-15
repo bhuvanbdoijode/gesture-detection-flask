@@ -1,10 +1,56 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Gesture Detection (Browser)</title>
+    <title>Gesture Detection</title>
+
     <style>
-        body { text-align: center; background: #111; color: white; font-family: Arial; }
-        video, canvas { border: 2px solid white; border-radius: 10px; margin-top: 20px; }
+        body {
+            font-family: Arial;
+            background: linear-gradient(135deg, #0b0f16, #1b1f27);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            font-weight: 300;
+            letter-spacing: 1px;
+            font-size: 30px;
+        }
+
+        /* Camera Container */
+        .camera-container {
+            position: relative;
+            width: 640px;
+            height: 480px;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 0 25px rgba(0,0,0,0.4);
+            backdrop-filter: blur(20px);
+        }
+
+        video, canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        #gesture {
+            margin-top: 25px;
+            font-size: 24px;
+            font-weight: 500;
+            padding: 10px 25px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.12);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        }
     </style>
 
     <!-- MediaPipe JS -->
@@ -14,12 +60,14 @@
 </head>
 
 <body>
-    <h1>Gesture Detection (Client-Side)</h1>
+    <h1>Hand Gesture Detection</h1>
 
-    <video id="video" width="640" height="480" autoplay playsinline></video>
-    <canvas id="output" width="640" height="480"></canvas>
+    <div class="camera-container">
+        <video id="video" width="640" height="480" autoplay playsinline></video>
+        <canvas id="output" width="640" height="480"></canvas>
+    </div>
 
-    <h2 id="gesture">Gesture: Detecting...</h2>
+    <div id="gesture">Gesture: Detecting...</div>
 
     <script>
         const videoElement = document.getElementById('video');
@@ -33,7 +81,7 @@
         }
         startCamera();
 
-        // MediaPipe Hands
+        // Setup MediaPipe
         const hands = new Hands({
             locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
         });
@@ -45,36 +93,13 @@
             minTrackingConfidence: 0.7
         });
 
-        hands.onResults(results => {
-            canvasCtx.save();
-            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                for (const landmarks of results.multiHandLandmarks) {
-                    drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS);
-                    drawLandmarks(canvasCtx, landmarks);
-                    detectGesture(landmarks);
-                }
-            }
-            canvasCtx.restore();
-        });
-
-        const camera = new Camera(videoElement, {
-            onFrame: async () => { await hands.send({ image: videoElement }); },
-            width: 640,
-            height: 480
-        });
-        camera.start();
-
         let lastGesture = "";
-let gestureHoldFrames = 0;
-const HOLD_THRESHOLD = 5; // gesture must stay stable for 5 frames
+        let gestureHoldFrames = 0;
+        const HOLD_THRESHOLD = 5;
 
 function detectGesture(landmarks) {
 
     function fingerIsUp(tip, pip, mcp) {
-        // Check vertical direction + bone angles → more accurate
         return (
             landmarks[tip].y < landmarks[pip].y &&
             landmarks[pip].y < landmarks[mcp].y
@@ -91,50 +116,77 @@ function detectGesture(landmarks) {
     const ringUp = fingerIsUp(16, 14, 13);
     const pinkyUp = fingerIsUp(20, 18, 17);
 
-    // Detect fist using distances (accurate even when tilted)
     const palmSize = distance(landmarks[0], landmarks[9]);
+
     const fistClosed =
         distance(landmarks[8], landmarks[5]) < palmSize * 0.3 &&
         distance(landmarks[12], landmarks[9]) < palmSize * 0.3 &&
         distance(landmarks[16], landmarks[13]) < palmSize * 0.3 &&
         distance(landmarks[20], landmarks[17]) < palmSize * 0.3;
 
-    let detected = "Detecting...";
+    let gesture = "Detecting...";
 
-    // ✊ FIST
-    if (fistClosed) {
-        detected = "✊ Fist";
-    }
-    // 🖐️ Open Palm
-    else if (thumbUp && indexUp && middleUp && ringUp && pinkyUp) {
-        detected = "🖐️ Open Palm";
-    }
-    // 👍 Thumbs Up
-    else if (thumbUp && !indexUp && !middleUp && !ringUp && !pinkyUp) {
-        detected = "👍 Thumbs Up";
-    }
-    // ✌️ Victory
-    else if (indexUp && middleUp && !ringUp && !pinkyUp) {
-        detected = "✌️ Victory";
-    }
-    // 👉 Pointing
-    else if (indexUp && !middleUp && !ringUp && !pinkyUp) {
-        detected = "👉 Pointing";
+    // --- FIXED GESTURES ---
+    if (fistClosed) gesture = "✊ Fist";
+    else if (thumbUp && indexUp && middleUp && ringUp && pinkyUp) gesture = "🖐 Open Palm";
+    else if (thumbUp && !indexUp && !middleUp && !ringUp && !pinkyUp) gesture = "👍 Thumbs Up";
+    else if (indexUp && middleUp && !ringUp && !pinkyUp) gesture = "✌ Victory";
+    else if (indexUp && !middleUp && !ringUp && !pinkyUp) gesture = "👉 Pointing";
+    else if (distance(landmarks[4], landmarks[8]) < palmSize * 0.25 && middleUp && ringUp && pinkyUp) gesture = "👌 OK";
+    else if (indexUp && !middleUp && !ringUp && pinkyUp) gesture = "🤘 Rock";
+    else if (thumbUp && !indexUp && !middleUp && !ringUp && pinkyUp) gesture = "🤙 Call Me";
+    else if (thumbUp && indexUp && distance(landmarks[12], landmarks[9]) < palmSize * 0.4 && !ringUp && !pinkyUp) gesture = "🫵 Finger Gun";
+    else if (indexUp && middleUp && ringUp && pinkyUp) gesture = "✋ Stop";
+
+    // ---------- COUNTING GESTURES (0-5) ----------
+    const fingerCount =
+        (thumbUp ? 1 : 0) +
+        (indexUp ? 1 : 0) +
+        (middleUp ? 1 : 0) +
+        (ringUp ? 1 : 0) +
+        (pinkyUp ? 1 : 0);
+
+    if (gesture === "Detecting...") {
+        if (fingerCount === 0) gesture = "0 Fingers";
+        else if (fingerCount === 1) gesture = "1 Finger";
+        else if (fingerCount === 2) gesture = "2 Fingers";
+        else if (fingerCount === 3) gesture = "3 Fingers";
+        else if (fingerCount === 4) gesture = "4 Fingers";
+        else if (fingerCount === 5) gesture = "5 Fingers";
     }
 
-    // -------- STABILIZATION (IMPORTANT) --------
-    if (detected === lastGesture) {
-        gestureHoldFrames++;
-    } else {
-        gestureHoldFrames = 0;
-    }
-    lastGesture = detected;
+    // ---------- STABILIZATION ----------
+    if (gesture === lastGesture) gestureHoldFrames++;
+    else gestureHoldFrames = 0;
+
+    lastGesture = gesture;
 
     if (gestureHoldFrames >= HOLD_THRESHOLD) {
-        document.getElementById("gesture").innerText = "Gesture: " + detected;
+        document.getElementById("gesture").innerText = "Gesture: " + gesture;
     }
 }
 
+
+        hands.onResults(results => {
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                for (const landmarks of results.multiHandLandmarks) {
+                    drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS);
+                    drawLandmarks(canvasCtx, landmarks);
+                    detectGesture(landmarks);
+                }
+            }
+        });
+
+        const camera = new Camera(videoElement, {
+            onFrame: async () => { await hands.send({ image: videoElement }); },
+            width: 640,
+            height: 480
+        });
+        camera.start();
     </script>
 </body>
 </html>
