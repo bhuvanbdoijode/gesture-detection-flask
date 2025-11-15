@@ -1,5 +1,1 @@
-Flask>=2.0
-opencv-python
-mediapipe==0.10.14
-numpy
-gunicorn
+Flask

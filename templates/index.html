@@ -1,60 +1,83 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html>
 <head>
-  <meta charset="utf-8" />
-  <title>Gesture Detection (Flask)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <title>Gesture Detection (Browser)</title>
+    <style>
+        body { text-align: center; background: #111; color: white; font-family: Arial; }
+        video, canvas { border: 2px solid white; border-radius: 10px; margin-top: 20px; }
+    </style>
+
+    <!-- MediaPipe JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils"></script>
 </head>
+
 <body>
-  <div class="container">
-    <header>
-      <h1>✋ Real-Time Gesture Detection AI (Flask)</h1>
-    </header>
+    <h1>Gesture Detection (Client-Side)</h1>
 
-    <main>
-      <section class="left">
-        <h2>Live Camera Feed</h2>
-        <div class="video-wrap">
-          <img id="video" src="{{ url_for('video_feed') }}" alt="Video Feed" />
-        </div>
+    <video id="video" width="640" height="480" autoplay playsinline></video>
+    <canvas id="output" width="640" height="480"></canvas>
 
-        <div class="controls">
-          <button id="snapBtn">📸 Snapshot</button>
-        </div>
-      </section>
+    <h2 id="gesture">Gesture: Detecting...</h2>
 
-      <aside class="right">
-        <h2>Detection Results</h2>
-        <div id="gestureBox" class="gesture-box">{{ settings.last_gesture or 'No Gesture Detected' }}</div>
+    <script>
+        const videoElement = document.getElementById('video');
+        const canvasElement = document.getElementById('output');
+        const canvasCtx = canvasElement.getContext('2d');
 
-        <div class="form-row">
-          <label>Detection Confidence: <span id="dval">{{ settings.min_detection_confidence }}</span></label>
-          <input id="dconf" type="range" min="0.1" max="1.0" step="0.05" value="{{ settings.min_detection_confidence }}">
-        </div>
+        // Start camera
+        async function startCamera() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            videoElement.srcObject = stream;
+        }
+        startCamera();
 
-        <div class="form-row">
-          <label>Tracking Confidence: <span id="tval">{{ settings.min_tracking_confidence }}</span></label>
-          <input id="tconf" type="range" min="0.1" max="1.0" step="0.05" value="{{ settings.min_tracking_confidence }}">
-        </div>
+        // MediaPipe Hands
+        const hands = new Hands({
+            locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
 
-        <div class="form-row">
-          <label><input id="landmarks" type="checkbox" {% if settings.show_landmarks %}checked{% endif %}> Show Landmarks</label>
-        </div>
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.7,
+            minTrackingConfidence: 0.7
+        });
 
-        <div class="form-row">
-          <label><input id="fps" type="checkbox" {% if settings.show_fps %}checked{% endif %}> Show FPS</label>
-        </div>
+        hands.onResults(results => {
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
-        <div id="status" class="info">Frames Processed: <span id="framesCount">{{ settings.frames_processed }}</span></div>
-      </aside>
-    </main>
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                for (const landmarks of results.multiHandLandmarks) {
+                    drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS);
+                    drawLandmarks(canvasCtx, landmarks);
+                    detectGesture(landmarks);
+                }
+            }
+            canvasCtx.restore();
+        });
 
-    <footer>
-      <p>Built with ❤️ using Flask, Mediapipe & OpenCV</p>
-    </footer>
-  </div>
+        const camera = new Camera(videoElement, {
+            onFrame: async () => { await hands.send({ image: videoElement }); },
+            width: 640,
+            height: 480
+        });
+        camera.start();
 
-  <script src="{{ url_for('static', filename='script.js') }}"></script>
+        // Simple Gesture Detection Example
+        function detectGesture(landmarks) {
+            const thumbTip = landmarks[4];
+            const indexMcp = landmarks[5];
+
+            if (thumbTip.y < indexMcp.y) {
+                document.getElementById("gesture").innerText = "Gesture: 👍 Thumbs Up";
+            } else {
+                document.getElementById("gesture").innerText = "Gesture: Detecting...";
+            }
+        }
+    </script>
 </body>
 </html>
