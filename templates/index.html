@@ -69,15 +69,49 @@
 
         // Simple Gesture Detection Example
         function detectGesture(landmarks) {
-            const thumbTip = landmarks[4];
-            const indexMcp = landmarks[5];
+    function isFingerUp(tip, pip) {
+        return landmarks[tip].y < landmarks[pip].y;
+    }
 
-            if (thumbTip.y < indexMcp.y) {
-                document.getElementById("gesture").innerText = "Gesture: 👍 Thumbs Up";
-            } else {
-                document.getElementById("gesture").innerText = "Gesture: Detecting...";
-            }
-        }
+    const thumbUp = landmarks[4].y < landmarks[3].y;
+    const indexUp = isFingerUp(8, 6);
+    const middleUp = isFingerUp(12, 10);
+    const ringUp = isFingerUp(16, 14);
+    const pinkyUp = isFingerUp(20, 18);
+
+    // ✋ PALM OPEN (all fingers up)
+    if (thumbUp && indexUp && middleUp && ringUp && pinkyUp) {
+        document.getElementById("gesture").innerText = "Gesture: 🖐️ Open Palm";
+        return;
+    }
+
+    // ✊ FIST (no fingers up)
+    if (!indexUp && !middleUp && !ringUp && !pinkyUp) {
+        document.getElementById("gesture").innerText = "Gesture: ✊ Fist";
+        return;
+    }
+
+    // 👍 THUMBS UP (thumb up, others down)
+    if (thumbUp && !indexUp && !middleUp && !ringUp && !pinkyUp) {
+        document.getElementById("gesture").innerText = "Gesture: 👍 Thumbs Up";
+        return;
+    }
+
+    // ✌️ PEACE / VICTORY SIGN (index + middle)
+    if (indexUp && middleUp && !ringUp && !pinkyUp) {
+        document.getElementById("gesture").innerText = "Gesture: ✌️ Victory";
+        return;
+    }
+
+    // 👉 POINTING (index only)
+    if (indexUp && !middleUp && !ringUp && !pinkyUp) {
+        document.getElementById("gesture").innerText = "Gesture: 👉 Pointing";
+        return;
+    }
+
+    document.getElementById("gesture").innerText = "Gesture: Detecting...";
+}
+
     </script>
 </body>
 </html>
